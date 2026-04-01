@@ -3,6 +3,7 @@ package org.plugindocker.plugindocker
 import org.dockerservice.ContainerDetails
 import org.dockerservice.ContainerInfo
 import org.dockerservice.DockerService
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,7 +23,12 @@ class DockerToolWindowControllerTest {
         )
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
 
         assertEquals("2 container(s) encontrado(s).", view.statusLabel.text)
         assertEquals(2, view.containerTable.rowCount)
@@ -37,7 +43,12 @@ class DockerToolWindowControllerTest {
         val service = FakeDockerService(containers = mutableListOf(runningContainer()))
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.containerTable.setRowSelectionInterval(0, 0)
 
         assertFalse(view.startButton.isEnabled)
@@ -51,7 +62,12 @@ class DockerToolWindowControllerTest {
         val service = FakeDockerService(containers = mutableListOf(stoppedContainer()))
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.containerTable.setRowSelectionInterval(0, 0)
 
         assertTrue(view.startButton.isEnabled)
@@ -69,7 +85,12 @@ class DockerToolWindowControllerTest {
         )
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.searchField.text = "wor"
 
         assertEquals(1, view.containerTable.rowCount)
@@ -83,7 +104,12 @@ class DockerToolWindowControllerTest {
         val service = FakeDockerService(containers = mutableListOf(webContainer, apiContainer))
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.containerTable.rowSorter.toggleSortOrder(1)
         view.containerTable.setRowSelectionInterval(0, 0)
         view.startButton.doClick()
@@ -103,7 +129,12 @@ class DockerToolWindowControllerTest {
         }
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.containerTable.setRowSelectionInterval(0, 0)
         view.startButton.doClick()
 
@@ -124,13 +155,37 @@ class DockerToolWindowControllerTest {
         }
         val view = DockerToolWindowView()
 
-        DockerToolWindowController(view, service, immediateExecutor, immediateUiDispatcher)
+        DockerToolWindowController(
+            view,
+            service,
+            immediateExecutor,
+            immediateUiDispatcher,
+        )
         view.containerTable.setRowSelectionInterval(0, 0)
         view.stopButton.doClick()
 
         assertEquals(listOf(initialContainer.id), service.stoppedIds)
         assertEquals("1 container(s) encontrado(s).", view.statusLabel.text)
         assertEquals("exited", view.containerTable.getValueAt(0, 3))
+    }
+
+    @Test
+    fun `anexa terminal integrado ao inicializar`() {
+        val service = FakeDockerService(containers = mutableListOf(runningContainer()))
+        val view = DockerToolWindowView()
+        val terminalComponent = JPanel()
+
+        DockerToolWindowController(
+            view = view,
+            dockerService = service,
+            backgroundExecutor = immediateExecutor,
+            uiDispatcher = immediateUiDispatcher,
+            terminalInitializer = { targetView, _ ->
+                targetView.attachTerminal(terminalComponent)
+            },
+        )
+
+        assertTrue(view.hasAttachedTerminal())
     }
 
     private class FakeDockerService(

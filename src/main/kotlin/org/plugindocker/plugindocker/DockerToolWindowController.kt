@@ -1,6 +1,8 @@
 package org.plugindocker.plugindocker
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.project.Project
 import com.intellij.util.concurrency.AppExecutorUtil
 import org.dockerservice.ContainerInfo
 import org.dockerservice.DockerService
@@ -15,7 +17,8 @@ class DockerToolWindowController(
     private val uiDispatcher: ((() -> Unit) -> Unit) = { action ->
         ApplicationManager.getApplication().invokeLater(action)
     },
-) {
+    private val terminalInitializer: ((DockerToolWindowView, Disposable) -> Unit)? = null,
+) : Disposable {
     companion object {
         private const val ACTION_START = "start"
         private const val ACTION_STOP = "stop"
@@ -25,9 +28,30 @@ class DockerToolWindowController(
     private var displayedContainers: List<ContainerInfo> = emptyList()
 
     init {
+        attachTerminal()
         bindActions()
         refreshContainers()
     }
+
+    constructor(
+        project: Project,
+        view: DockerToolWindowView,
+        dockerService: DockerService = DockerService(),
+        backgroundExecutor: Executor = AppExecutorUtil.getAppExecutorService(),
+        uiDispatcher: ((() -> Unit) -> Unit) = { action ->
+            ApplicationManager.getApplication().invokeLater(action)
+        },
+    ) : this(
+        view = view,
+        dockerService = dockerService,
+        backgroundExecutor = backgroundExecutor,
+        uiDispatcher = uiDispatcher,
+        terminalInitializer = { targetView, parentDisposable ->
+            val workingDirectory = project.basePath ?: System.getProperty("user.home")
+            val terminalWidget = DockerTerminalRunner(project).createEmbeddedTerminal(parentDisposable, workingDirectory)
+            targetView.attachTerminal(terminalWidget.component)
+        },
+    )
 
     private fun bindActions() {
         view.refreshButton.addActionListener { refreshContainers() }
@@ -48,6 +72,10 @@ class DockerToolWindowController(
                 loadSelectedContainerDetails()
             }
         }
+    }
+
+    private fun attachTerminal() {
+        terminalInitializer?.invoke(view, this)
     }
 
     private fun refreshContainers() {
@@ -179,4 +207,6 @@ class DockerToolWindowController(
     private fun runOnEdt(action: () -> Unit) {
         uiDispatcher(action)
     }
+
+    override fun dispose() = Unit
 }

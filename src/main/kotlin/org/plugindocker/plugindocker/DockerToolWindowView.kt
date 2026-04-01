@@ -3,11 +3,14 @@ package org.plugindocker.plugindocker
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.table.JBTable
+import com.intellij.openapi.Disposable
 import org.dockerservice.ContainerInfo
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
+import javax.swing.JComponent
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -18,7 +21,7 @@ import javax.swing.ListSelectionModel
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableRowSorter
 
-class DockerToolWindowView {
+class DockerToolWindowView : Disposable {
     private val tableModel = object : DefaultTableModel(arrayOf("ID", "Nome", "Image", "Estado", "Status"), 0) {
         override fun isCellEditable(row: Int, column: Int) = false
     }
@@ -40,6 +43,7 @@ class DockerToolWindowView {
     val refreshButton = JButton("Atualizar")
     val startButton = JButton("Iniciar").apply { isEnabled = false }
     val stopButton = JButton("Parar").apply { isEnabled = false }
+    private val terminalHost = JBPanel<JBPanel<*>>(BorderLayout())
 
     val content = JBPanel<JBPanel<*>>(BorderLayout()).apply {
         add(buildToolbar(), BorderLayout.NORTH)
@@ -86,6 +90,15 @@ class DockerToolWindowView {
         }
     }
 
+    fun attachTerminal(component: JComponent) {
+        terminalHost.removeAll()
+        terminalHost.add(component, BorderLayout.CENTER)
+        terminalHost.revalidate()
+        terminalHost.repaint()
+    }
+
+    fun hasAttachedTerminal(): Boolean = terminalHost.componentCount > 0
+
     private fun buildToolbar(): JPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
         add(JLabel("Buscar:"))
         add(searchField)
@@ -97,14 +110,22 @@ class DockerToolWindowView {
     private fun buildCenterPanel(): JSplitPane {
         val detailsScroll = ScrollPaneFactory.createScrollPane(detailsArea)
         detailsScroll.preferredSize = Dimension(0, 140)
+        terminalHost.preferredSize = Dimension(0, 220)
+
+        val bottomTabs = JBTabbedPane().apply {
+            addTab("Detalhes", detailsScroll)
+            addTab("Terminal", terminalHost)
+        }
 
         return JSplitPane(
             JSplitPane.VERTICAL_SPLIT,
             ScrollPaneFactory.createScrollPane(containerTable),
-            detailsScroll,
+            bottomTabs,
         ).apply {
             resizeWeight = 0.75
             dividerSize = 6
         }
     }
+
+    override fun dispose() = Unit
 }
